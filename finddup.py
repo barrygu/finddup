@@ -74,48 +74,47 @@ def main(argc, argv):
         Usage(argv[0])
         sys.exit(1)
 
-    search_path = []
-    wildcard_fname = None
-    regex_fname = None
-    exclude_dir = None
+    options = {}
+    options['names'] = ['wildcard_fname', 'regex_fname', 'exclude_dir']
+    options['wildcard_fname'] = None
+    options['regex_fname'] = None
+    options['exclude_dir'] = None
+    options['search_path'] = []
 
     print "\nfind duplicate file in"
-    opt = 0
+
+    opt = None
     for val in argv[1:]:
-        if opt == 1:
-            wildcard_fname = val
-            opt = 0
-        elif opt == 2:
-            regex_fname = val
-            opt = 0
-        elif opt == 3:
-            exclude_dir = val
-            opt = 0
-        elif opt == 0:
+        if opt == None:
             if val == '--file' or val == '-f':
-                opt = 1
-                continue
+                opt = 'wildcard_fname'
             elif val == '--regex' or val == '-r':
-                opt = 2
-                continue
+                opt = 'regex_fname'
             elif val == '--exclude-dir':
-                opt = 3
-                continue
+                opt = 'exclude_dir'
             else:
-                search_path.extend(glob.glob(val))
+                options['search_path'].extend(glob.glob(val))
             #endif val
+        elif opt in options['names']:
+            options[opt] = val
+            opt = None
+        else:
+            Usage(argv[0])
+            sys.exit(1)
         #endif opt
     #end for
 
-    #for idx, val in enumerate(search_path):
-    #for val in search_path:
-    #    search_path[idx] = os.path.normpath(val)
-    #    val = search_path[idx]
-    #    if not os.path.isdir(val):
-    #        print "   *** error:", val, "is not a directory"
-    #        sys.exit(1)
-    #    print "  ", val
-    #print
+    '''
+    for idx, val in enumerate(search_path):
+    for val in search_path:
+        search_path[idx] = os.path.normpath(val)
+        val = search_path[idx]
+        if not os.path.isdir(val):
+            print "   *** error:", val, "is not a directory"
+            sys.exit(1)
+        print "  ", val
+    print
+    '''
 
     '''
     full_props: { file_name,    # file_name as key
@@ -126,7 +125,6 @@ def main(argc, argv):
                                                   }
                               }
                 }
-
     '''
 
     file_list = {}
@@ -134,29 +132,27 @@ def main(argc, argv):
     count_dir = 0
     count_file = 0
 
-    reobj_fname = None
-    if regex_fname != None:
-        reobj_fname = re.compile(regex_fname)
+    if options['regex_fname'] != None:
+        options['regex_fname'] = re.compile(options['regex_fname'])
 
-    reobj_exdir = None
-    if exclude_dir != None:
-        reobj_exdir = re.compile(exclude_dir)
+    if options['exclude_dir'] != None:
+        options['exclude_dir'] = re.compile(options['exclude_dir'])
         
     t_start = time.clock()
 
-    for base_dir in search_path:
+    for base_dir in options['search_path']:
         if not os.path.isdir(base_dir):
             print base_dir, "is not a directory, ignored"
             continue
         for root, dirs, files in os.walk(base_dir):
             count_dir = count_dir + 1
-            if reobj_exdir != None and reobj_exdir.search(root) != None:   # root is in exclude dirs pattern
+            if options['exclude_dir'] != None and options['exclude_dir'].search(root) != None:   # root is in exclude dirs pattern
                 continue
             for afile in files:
                 count_file = count_file + 1
-                if wildcard_fname != None and not fnmatch.fnmatch(afile, wildcard_fname): # file is not in wildcard pattern
+                if options['wildcard_fname'] != None and not fnmatch.fnmatch(afile, options['wildcard_fname']): # file is not in wildcard pattern
                     continue
-                if reobj_fname != None and reobj_fname.match(afile) == None: # file is not in regex pattern
+                if options['regex_fname'] != None and options['regex_fname'].match(afile) == None: # file is not in regex pattern
                     continue
                 if not file_list.has_key(afile):
                     file_list[afile] = {}
@@ -203,6 +199,7 @@ def main(argc, argv):
             #end for in file size
             if output_filename:
                 print
+            #endif output_filename
         #end if for count of file
     #end for in file name dict
 
