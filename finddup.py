@@ -70,29 +70,30 @@ def Usage(prog):
 #end def Usage
 
 def ParseArgs(argv, options):
-    opt = None
+    opt_name = None
+    option_names = options['option_names']
     for val in argv[1:]:
-        if opt == None:
+        if opt_name == None:
             if val == '--file' or val == '-f':
-                opt = 'wildcard_fname'
+                opt_name = option_names[0]    # 'wildcard_file_name'
             elif val == '--regex' or val == '-r':
-                opt = 'regex_fname'
+                opt_name = option_names[1]    # 'regex_file_name'
             elif val == '--exclude-dir':
-                opt = 'exclude_dir'
+                opt_name = option_names[2]    # 'exclude_dir'
             else:
                 options['search_path'].extend(glob.glob(val))
             #endif val
-        elif opt in options['names']:
-            options[opt] = val
-            opt = None
+        elif opt_name in option_names:
+            options[opt_name] = val
+            opt_name = None
         else:
             Usage(argv[0])
             sys.exit(1)
-        #endif opt
+        #endif opt_name
     #end for
 
-    if options['regex_fname'] != None:
-        options['regex_fname'] = re.compile(options['regex_fname'])
+    if options['regex_file_name'] != None:
+        options['regex_file_name'] = re.compile(options['regex_file_name'])
 
     if options['exclude_dir'] != None:
         options['exclude_dir'] = re.compile(options['exclude_dir'])
@@ -144,6 +145,17 @@ def OutputResult(mylist):
     return (count_same, count_dup)
 #end def OutputResult
 
+def MatchedFilesPattern(afile, options):
+    # no wildcard_file_name and regex_file_name, assume all files
+    if (options['wildcard_file_name'] == None and options['regex_file_name'] == None):
+        return True
+    if (options['wildcard_file_name'] != None and fnmatch.fnmatch(afile, options['wildcard_file_name'])):
+        return True
+    if (options['regex_file_name'] != None and options['regex_file_name'].match(afile) != None):
+        return True
+    return False
+#end def MatchedFilesPattern
+
 def FindDup(options, file_list):
     count_dir = 0
     count_file = 0
@@ -155,13 +167,12 @@ def FindDup(options, file_list):
         
         for root, dirs, files in os.walk(base_dir):
             count_dir = count_dir + 1
-            if options['exclude_dir'] != None and options['exclude_dir'].search(root) != None:   # root is in exclude dirs pattern
+            if options['exclude_dir'] != None and options['exclude_dir'].search(root) != None:   # found directory root in exclude dirs pattern
                 continue
             for afile in files:
                 count_file = count_file + 1
-                if options['wildcard_fname'] != None and not fnmatch.fnmatch(afile, options['wildcard_fname']): # file is not in wildcard pattern
-                    continue
-                if options['regex_fname'] != None and options['regex_fname'].match(afile) == None: # file is not in regex pattern
+                # file does not in wildcard pattern and regex pattern
+                if not MatchedFilesPattern(afile, options):
                     continue
                 if not file_list.has_key(afile):
                     file_list[afile] = {}
@@ -178,11 +189,10 @@ def main(argc, argv):
         sys.exit(1)
 
     options = {}
-    options['names'] = ['wildcard_fname', 'regex_fname', 'exclude_dir']
-    options['wildcard_fname'] = None
-    options['regex_fname'] = None
-    options['exclude_dir'] = None
     options['search_path'] = []
+    options['option_names'] = ('wildcard_file_name', 'regex_file_name', 'exclude_dir')
+    for name in options['option_names']:
+        options[name] = None
 
     ParseArgs(argv, options)
     
