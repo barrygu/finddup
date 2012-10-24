@@ -211,7 +211,7 @@ def main(argc, argv):
 
     file_list = {}
 
-    print "\nfind duplicate file in", options['search_path']
+    print "\nfind duplicate file in:\n", options['search_path'], "\n"
 
     t_start = time.clock()
     (count_dir, count_file) = FindDup(options, file_list)
