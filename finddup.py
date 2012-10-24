@@ -69,20 +69,7 @@ def Usage(prog):
     print "\t\t--exclude-dir <pattern>: exclude dirs's name with pattern by regular expression"
 #end def Usage
 
-def main(argc, argv):
-    if argc <= 1:
-        Usage(argv[0])
-        sys.exit(1)
-
-    options = {}
-    options['names'] = ['wildcard_fname', 'regex_fname', 'exclude_dir']
-    options['wildcard_fname'] = None
-    options['regex_fname'] = None
-    options['exclude_dir'] = None
-    options['search_path'] = []
-
-    print "\nfind duplicate file in"
-
+def ParseArgs(argv, options):
     opt = None
     for val in argv[1:]:
         if opt == None:
@@ -104,6 +91,101 @@ def main(argc, argv):
         #endif opt
     #end for
 
+    if options['regex_fname'] != None:
+        options['regex_fname'] = re.compile(options['regex_fname'])
+
+    if options['exclude_dir'] != None:
+        options['exclude_dir'] = re.compile(options['exclude_dir'])
+#end def ParseArgs
+
+def OutputResult(mylist):
+    count_same = 0
+    count_dup = 0
+    for file_name in mylist:
+        count_same += 1
+        full_props = mylist[file_name]
+        count_of_file = full_props['count']
+        file_props = full_props['props']
+        # skip if only one file for a name or every file size are different, it's means no dupplicate files
+        if count_of_file > 1 and count_of_file != len(file_props):
+            output_filename = False
+            for file_size in file_props:   # get file size for every file with same name
+                props_for_a_file = file_props[file_size]
+                output_filesize = False
+                for md5 in props_for_a_file:    # get md5 signature for every file with same size
+                    if len(props_for_a_file[md5]) > 1: # skip if only one file with a md5
+                        count_dup += 1
+                        if not output_filename:
+                            print file_name, ":"
+                            output_filename = True
+                        #endif print file name
+                        
+                        if not output_filesize:
+                            print "   size: %d:" % file_size
+                            output_filesize = True
+                        #endif print file size
+                        
+                        print "      md5:", binascii.b2a_hex(md5)
+                        
+                        for path in props_for_a_file[md5]:
+                            print "          %s" % path
+                            # TODO:
+                            #   print latest modified date
+                            #   print metadata
+                        #end for in path dict
+                    #end if for length of md5 dict
+                #end for in md5 dict
+            #end for in file size
+            if output_filename:
+                print
+            #end if for output blank line
+        #end if for count of file
+    #end for file in file_list
+    return (count_same, count_dup)
+#end def OutputResult
+
+def FindDup(options, file_list):
+    count_dir = 0
+    count_file = 0
+    for base_dir in options['search_path']:
+        if not os.path.isdir(base_dir):
+            print base_dir, "is not a directory, ignored"
+            continue
+        #endif isdir
+        
+        for root, dirs, files in os.walk(base_dir):
+            count_dir = count_dir + 1
+            if options['exclude_dir'] != None and options['exclude_dir'].search(root) != None:   # root is in exclude dirs pattern
+                continue
+            for afile in files:
+                count_file = count_file + 1
+                if options['wildcard_fname'] != None and not fnmatch.fnmatch(afile, options['wildcard_fname']): # file is not in wildcard pattern
+                    continue
+                if options['regex_fname'] != None and options['regex_fname'].match(afile) == None: # file is not in regex pattern
+                    continue
+                if not file_list.has_key(afile):
+                    file_list[afile] = {}
+                AddFileProp(file_list[afile], root, afile)
+            #end for afile in files
+        # end for in os.walk
+    #end for in search path list
+    return (count_dir, count_file)
+#end def FindDup
+    
+def main(argc, argv):
+    if argc <= 1:
+        Usage(argv[0])
+        sys.exit(1)
+
+    options = {}
+    options['names'] = ['wildcard_fname', 'regex_fname', 'exclude_dir']
+    options['wildcard_fname'] = None
+    options['regex_fname'] = None
+    options['exclude_dir'] = None
+    options['search_path'] = []
+
+    ParseArgs(argv, options)
+    
     '''
     for idx, val in enumerate(search_path):
     for val in search_path:
@@ -129,79 +211,13 @@ def main(argc, argv):
 
     file_list = {}
 
-    count_dir = 0
-    count_file = 0
+    print "\nfind duplicate file in", options['search_path']
 
-    if options['regex_fname'] != None:
-        options['regex_fname'] = re.compile(options['regex_fname'])
-
-    if options['exclude_dir'] != None:
-        options['exclude_dir'] = re.compile(options['exclude_dir'])
-        
     t_start = time.clock()
-
-    for base_dir in options['search_path']:
-        if not os.path.isdir(base_dir):
-            print base_dir, "is not a directory, ignored"
-            continue
-        for root, dirs, files in os.walk(base_dir):
-            count_dir = count_dir + 1
-            if options['exclude_dir'] != None and options['exclude_dir'].search(root) != None:   # root is in exclude dirs pattern
-                continue
-            for afile in files:
-                count_file = count_file + 1
-                if options['wildcard_fname'] != None and not fnmatch.fnmatch(afile, options['wildcard_fname']): # file is not in wildcard pattern
-                    continue
-                if options['regex_fname'] != None and options['regex_fname'].match(afile) == None: # file is not in regex pattern
-                    continue
-                if not file_list.has_key(afile):
-                    file_list[afile] = {}
-                AddFileProp(file_list[afile], root, afile)
-            #end for in files
-        # end for in os.walk
-    #end for in search path list
-
+    (count_dir, count_file) = FindDup(options, file_list)
     t_end = time.clock()
 
-    mylist = file_list
-    count_same = 0
-    count_dup = 0
-    for file_name in mylist:
-        count_same += 1
-        full_props = mylist[file_name]
-        count_of_file = full_props['count']
-        file_props = full_props['props']
-        # skip if only one file for a name or every file size are different, it's means no dupplicate files
-        if count_of_file > 1 and count_of_file != len(file_props):
-            output_filename = False
-            for file_size in file_props:   # get file size for every file with same name
-                props_for_a_file = file_props[file_size]
-                output_filesize = False
-                for md5 in props_for_a_file:    # get md5 signature for every file with same size
-                    if len(props_for_a_file[md5]) > 1: # skip if only one file with a md5
-                        count_dup += 1
-                        if not output_filename:
-                            print file_name, ":"
-                            output_filename = True
-                        if not output_filesize:
-                            print "   size: %d:" % file_size
-                            output_filesize = True
-                            
-                        print "      md5:", binascii.b2a_hex(md5)
-                        for path in props_for_a_file[md5]:
-                            print "          %s" % path
-                            # TODO:
-                            #   print latest modified date
-                            #   print metadata
-                        #end for in path dict
-                    #end if for length of md5 dict
-                #end for in md5 dict
-            #end for in file size
-            if output_filename:
-                print
-            #endif output_filename
-        #end if for count of file
-    #end for in file name dict
+    (count_same, count_dup) = OutputResult(file_list)
 
     print "\nfind end, using time: %f" % (t_end - t_start)
     print "search in %d dirs, found %d file(s) with same name in %d files, and %d file(s) duplicate\n" % (count_dir, count_same, count_file, count_dup)
