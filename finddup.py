@@ -197,18 +197,6 @@ def main(argc, argv):
     ParseArgs(argv, options)
     
     '''
-    for idx, val in enumerate(search_path):
-    for val in search_path:
-        search_path[idx] = os.path.normpath(val)
-        val = search_path[idx]
-        if not os.path.isdir(val):
-            print "   *** error:", val, "is not a directory"
-            sys.exit(1)
-        print "  ", val
-    print
-    '''
-
-    '''
     full_props: { file_name,    # file_name as key
                   file_count, 
                   file_props: { file_size,  # file_size as key
