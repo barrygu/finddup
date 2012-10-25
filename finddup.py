@@ -67,6 +67,9 @@ def Usage(prog):
     print "\t\t--file | -f <pattern>: pattern of wildcard file name"
     print "\t\t--regex | -r <pattern>: match file name with pattern by regular expression"
     print "\t\t--exclude-dir <pattern>: exclude dirs's name with pattern by regular expression"
+    print "\t\t--exclude-file | -x <pattern>: exclude file which name is matched by pattern of wildcard"
+    print "\t\t--exclude-regex | -X <pattern>: exclude file name with pattern by regular expression"
+    print "\tthe priority of exclude is higher then match pattern"
 #end def Usage
 
 def ParseArgs(argv, options):
@@ -75,11 +78,15 @@ def ParseArgs(argv, options):
     for val in argv[1:]:
         if opt_name == None:
             if val == '--file' or val == '-f':
-                opt_name = option_names[0]    # 'wildcard_file_name'
+                opt_name = option_names[0]    # 'wildcard_file'
             elif val == '--regex' or val == '-r':
-                opt_name = option_names[1]    # 'regex_file_name'
+                opt_name = option_names[1]    # 'regex_file'
             elif val == '--exclude-dir':
                 opt_name = option_names[2]    # 'exclude_dir'
+            elif val == '--exclude-file' or val == '-x':
+                opt_name = option_names[3]    # 'exclude_file'
+            elif val == '--exclude-regex' or val == '-X':
+                opt_name = option_names[4]    # 'exclude_regex'
             else:
                 options['search_path'].extend(glob.glob(val))
             #endif val
@@ -92,11 +99,14 @@ def ParseArgs(argv, options):
         #endif opt_name
     #end for
 
-    if options['regex_file_name'] != None:
-        options['regex_file_name'] = re.compile(options['regex_file_name'])
+    if options['regex_file'] != None:
+        options['regex_file'] = re.compile(options['regex_file'])
 
     if options['exclude_dir'] != None:
         options['exclude_dir'] = re.compile(options['exclude_dir'])
+
+    if options['exclude_regex'] != None:
+        options['exclude_regex'] = re.compile(options['exclude_regex'])
 #end def ParseArgs
 
 def OutputResult(mylist):
@@ -146,13 +156,18 @@ def OutputResult(mylist):
 #end def OutputResult
 
 def MatchedFilesPattern(afile, options):
-    # no wildcard_file_name and regex_file_name, assume all files
-    if (options['wildcard_file_name'] == None and options['regex_file_name'] == None):
+    if options['exclude_file'] and fnmatch.fnmatch(afile, options['exclude_file']):
+        return False
+    if options['exclude_regex'] and options['exclude_regex'].search(afile):
+        return False
+
+    # no wildcard_file and regex_file, assume all files
+    if (options['wildcard_file'] == None and options['regex_file'] == None):
         return True
-    if (options['wildcard_file_name'] != None and fnmatch.fnmatch(afile, options['wildcard_file_name'])):
+
+    if (options['wildcard_file'] != None and fnmatch.fnmatch(afile, options['wildcard_file'])):
         return True
-    #if (options['regex_file_name'] != None and options['regex_file_name'].match(afile) != None):
-    if (options['regex_file_name'] != None and options['regex_file_name'].search(afile) != None):
+    if (options['regex_file'] != None and options['regex_file'].search(afile) != None):
         return True
     return False
 #end def MatchedFilesPattern
@@ -191,7 +206,7 @@ def main(argc, argv):
 
     options = {}
     options['search_path'] = []
-    options['option_names'] = ('wildcard_file_name', 'regex_file_name', 'exclude_dir')
+    options['option_names'] = ('wildcard_file', 'regex_file', 'exclude_dir', 'exclude_file', 'exclude_regex')
     for name in options['option_names']:
         options[name] = None
 
