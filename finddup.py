@@ -37,7 +37,7 @@ def AddFileProp(fprops, root, file):
         tmp_prop = props['fake_size']
         #fname = join(base_dir + tmp_prop['md5_dummy'][0], file)    # use file size as the key of dict
         fname = join(tmp_prop['md5_dummy'][0], file)    # use file size as the key of dict
-        if os.path.exists(fname):  # if the first file removed, use the current file path to instead the old file path
+        if not os.path.exists(fname):  # if the first file removed, use the current file path to instead the old file path
             tmp_prop['md5_dummy'][0] = root
             return
 
