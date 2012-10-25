@@ -151,7 +151,8 @@ def MatchedFilesPattern(afile, options):
         return True
     if (options['wildcard_file_name'] != None and fnmatch.fnmatch(afile, options['wildcard_file_name'])):
         return True
-    if (options['regex_file_name'] != None and options['regex_file_name'].match(afile) != None):
+    #if (options['regex_file_name'] != None and options['regex_file_name'].match(afile) != None):
+    if (options['regex_file_name'] != None and options['regex_file_name'].search(afile) != None):
         return True
     return False
 #end def MatchedFilesPattern
