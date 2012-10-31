@@ -37,7 +37,8 @@ def AddFileProp(fprops, root, file):
         tmp_prop = props['fake_size']
         #fname = join(base_dir + tmp_prop['md5_dummy'][0], file)    # use file size as the key of dict
         fname = join(tmp_prop['md5_dummy'][0], file)    # use file size as the key of dict
-        if not os.path.exists(fname):  # if the first file removed, use the current file path to instead the old file path
+        #if not os.path.exists(fname):  # if the first file removed, use the current file path to instead the old file path
+        if not os.access(fname, os.R_OK): # check accessibility for the file, if not, use the current file path to instead the old file path
             tmp_prop['md5_dummy'][0] = root
             return
 
@@ -189,6 +190,8 @@ def FindDup(options, file_list):
                 count_file = count_file + 1
                 # file does not in wildcard pattern and regex pattern
                 if not MatchedFilesPattern(afile, options):
+                    continue
+                if not os.access(join(root, afile), os.R_OK): # if the file cannot be access, skip it
                     continue
                 if not file_list.has_key(afile):
                     file_list[afile] = {}
